@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using NUnit.Framework.Constraints;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -18,7 +17,6 @@ public class Server : MonoBehaviour
     {
         NetworkTransport.Init();
         ConnectionConfig cc = new ConnectionConfig();
-
         _reliableChannel = cc.AddChannel(QosType.Reliable);
         _unreliableChannel = cc.AddChannel(QosType.Unreliable);
 
@@ -28,6 +26,8 @@ public class Server : MonoBehaviour
         _webHostID = NetworkTransport.AddWebsocketHost(topo, Consts.PORT, null);
 
         _isStarted = true;
+
+        Debug.Log("Server started");
     }
 
     void Update()
@@ -41,8 +41,7 @@ public class Server : MonoBehaviour
         byte[] recBuffer = new byte[1024];
         int bufferSize = 1024;
         int dataSize;
-        byte error;
-        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out error);
+        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
         switch (recData)
         {
             case NetworkEventType.Nothing:         //1

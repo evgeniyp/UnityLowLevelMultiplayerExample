@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 
@@ -31,17 +29,19 @@ public class Client : MonoBehaviour
 
         NetworkTransport.Init();
         ConnectionConfig cc = new ConnectionConfig();
-
         _reliableChannel = cc.AddChannel(QosType.Reliable);
         _unreliableChannel = cc.AddChannel(QosType.Unreliable);
 
         HostTopology topo = new HostTopology(cc, Consts.MAX_CONNECTION);
 
-        _hostID = NetworkTransport.AddHost(topo, Consts.PORT, null);
-        _connectionID = NetworkTransport.Connect(_hostID, "127.0.0.1", Consts.PORT, 0, out _error);
+        _hostID = NetworkTransport.AddHost(topo, 0);
+        _connectionID = NetworkTransport.Connect(_hostID, "zz", Consts.PORT, 0, out _error);
 
-        _connectionTime = Time.time;
-        _isConnected = true;
+        if (NetworkErrorHandler.IsOk(_error))
+        {
+            _connectionTime = Time.time;
+            _isConnected = true;
+        }
     }
 
     void Update()
@@ -55,8 +55,7 @@ public class Client : MonoBehaviour
         byte[] recBuffer = new byte[1024];
         int bufferSize = 1024;
         int dataSize;
-        byte error;
-        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out error);
+        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
         switch (recData)
         {
             case NetworkEventType.Nothing:         //1
