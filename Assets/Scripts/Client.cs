@@ -4,13 +4,12 @@ using UnityEngine.UI;
 
 public class Client : MonoBehaviour
 {
-    private int _connectionID;
+    private int _connectionId;
     private int _hostID;
-    private int _webHostID;
+    private int _webHostId;
     private int _reliableChannel;
     private int _unreliableChannel;
     private bool _isConnected;
-    private bool _isStarted;
     private float _connectionTime;
     private byte _error;
 
@@ -18,6 +17,9 @@ public class Client : MonoBehaviour
 
     public void Connect()
     {
+        if (_isConnected)
+            return;
+
         string pName = GameObject.Find("NameInput").GetComponent<InputField>().text;
         if (string.IsNullOrEmpty(pName))
         {
@@ -35,12 +37,13 @@ public class Client : MonoBehaviour
         HostTopology topo = new HostTopology(cc, Consts.MAX_CONNECTION);
 
         _hostID = NetworkTransport.AddHost(topo, 0);
-        _connectionID = NetworkTransport.Connect(_hostID, "zz", Consts.PORT, 0, out _error);
+        _connectionId = NetworkTransport.Connect(_hostID, "127.0.0.1", Consts.PORT, 0, out _error);
 
-        if (NetworkErrorHandler.IsOk(_error))
+        if ((NetworkError)_error == NetworkError.Ok)
         {
             _connectionTime = Time.time;
             _isConnected = true;
+            Debug.Log("Connected");
         }
     }
 
@@ -58,13 +61,11 @@ public class Client : MonoBehaviour
         NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
         switch (recData)
         {
-            case NetworkEventType.Nothing:         //1
+            case NetworkEventType.DataEvent:
                 break;
-            case NetworkEventType.ConnectEvent:    //2
-                break;
-            case NetworkEventType.DataEvent:       //3
-                break;
-            case NetworkEventType.DisconnectEvent: //4
+            case NetworkEventType.DisconnectEvent:
+                _isConnected = false;
+                Debug.Log("Disconnected");
                 break;
         }
     }
