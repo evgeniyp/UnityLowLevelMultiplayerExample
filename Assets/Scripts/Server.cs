@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using NUnit.Framework.Constraints;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -47,10 +48,13 @@ public class Server : MonoBehaviour
             case NetworkEventType.Nothing:         //1
                 break;
             case NetworkEventType.ConnectEvent:    //2
+                Debug.Log("Player " + connectionId + " has connected");
                 break;
             case NetworkEventType.DataEvent:       //3
+                Debug.Log("Player " + connectionId + " has sent: " + Encoding.Unicode.GetString(recBuffer, 0, dataSize));
                 break;
             case NetworkEventType.DisconnectEvent: //4
+                Debug.Log("Player " + connectionId + " has disconnected");
                 break;
         }
     }

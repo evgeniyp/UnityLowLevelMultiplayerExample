@@ -1,8 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 
 public class Client : MonoBehaviour
 {
@@ -16,9 +16,19 @@ public class Client : MonoBehaviour
     private float _connectionTime;
     private byte _error;
 
+    private string _playerName;
 
     public void Connect()
     {
+        string pName = GameObject.Find("NameInput").GetComponent<InputField>().text;
+        if (string.IsNullOrEmpty(pName))
+        {
+            Debug.Log("You must enter a name!");
+            return;
+        }
+
+        _playerName = pName;
+
         NetworkTransport.Init();
         ConnectionConfig cc = new ConnectionConfig();
 
