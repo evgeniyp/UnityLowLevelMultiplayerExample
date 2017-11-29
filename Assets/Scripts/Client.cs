@@ -31,6 +31,13 @@ public class Client : MonoBehaviour
     private string _playerName;
     private int _playerId;
 
+    private GameObject _canvas;
+
+    private void Start()
+    {
+        _canvas = GameObject.Find("Canvas");
+    }
+
     public void Connect()
     {
         if (_isConnected)
@@ -78,8 +85,11 @@ public class Client : MonoBehaviour
                 OnData(Encoding.Unicode.GetString(recBuffer, 0, dataSize));
                 break;
             case NetworkEventType.DisconnectEvent:
-                _isConnected = false;
                 Debug.Log("Disconnected");
+                _isConnected = false;
+                DestroyAllPlayers();
+                _canvas.SetActive(true);
+                _isStarted = false;
                 break;
         }
     }
@@ -133,12 +143,13 @@ public class Client : MonoBehaviour
             var instance = Instantiate(PlayerPrefab);
             if (playerId == _playerId)
             {
-                GameObject.Find("Canvas").SetActive(false);
+                _canvas.SetActive(false);
                 _isStarted = true;
             }
 
             var player = new Player() { Instance = instance, PlayerId = playerId, PlayerName = playerName };
             player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
+            player.Instance.transform.position = new Vector3(50 * playerId, 0, 0);
             _players.Add(playerId, player);
         }
     }
@@ -150,5 +161,12 @@ public class Client : MonoBehaviour
             Destroy(_players[playerId].Instance);
             _players.Remove(playerId);
         }
+    }
+
+    private void DestroyAllPlayers()
+    {
+        foreach (var player in _players)
+            Destroy(player.Value.Instance);
+        _players.Clear();
     }
 }

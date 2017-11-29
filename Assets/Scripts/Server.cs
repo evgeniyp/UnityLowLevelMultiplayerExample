@@ -92,7 +92,7 @@ public class Server : MonoBehaviour
                 var playerName = msg[1];
                 _clients[connectionId].PlayerName = playerName;
                 Broadcast($"{CommandAliases.PlayerConnected}|{connectionId}={playerName}", _reliableChannel, connectionId);
-                var players = _clients.Where(w => w.Key != connectionId && !string.IsNullOrEmpty(w.Value.PlayerName)).Select(s => $"{s.Value.ConnectionId}={s.Value.PlayerName}");
+                var players = _clients.Where(w => !string.IsNullOrEmpty(w.Value.PlayerName)).Select(s => $"{s.Value.ConnectionId}={s.Value.PlayerName}");
                 Send($"{CommandAliases.Players}|{string.Join("|", players)}", _reliableChannel, connectionId);
                 break;
             default:
