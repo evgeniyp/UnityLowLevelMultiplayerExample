@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Linq;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -11,12 +12,14 @@ internal class ConnectedClient
 
 public class Server : MonoBehaviour
 {
+    #region Connection properties
     private int _hostID;
-    private int _webHostId;
     private int _reliableChannel;
     private int _unreliableChannel;
-    private bool _isStarted;
     private byte _error;
+    #endregion
+
+    private bool _isStarted;
 
     private readonly Dictionary<int, ConnectedClient> _clients = new Dictionary<int, ConnectedClient>();
 
@@ -24,16 +27,11 @@ public class Server : MonoBehaviour
     {
         NetworkTransport.Init();
         ConnectionConfig cc = new ConnectionConfig();
-        _reliableChannel = cc.AddChannel(QosType.Reliable);
+        _reliableChannel = cc.AddChannel(QosType.ReliableSequenced);
         _unreliableChannel = cc.AddChannel(QosType.Unreliable);
-
         HostTopology topo = new HostTopology(cc, Consts.MAX_CONNECTION);
-
         _hostID = NetworkTransport.AddHost(topo, Consts.PORT, null);
-        _webHostId = NetworkTransport.AddWebsocketHost(topo, Consts.PORT, null);
-
         _isStarted = true;
-
         Debug.Log("Server started");
     }
 
@@ -63,11 +61,14 @@ public class Server : MonoBehaviour
         }
     }
 
-    private void Broadcast(string message, int channelId)
+    private void Broadcast(string message, int channelId, int? exceptConnectionId = null)
     {
         Debug.Log("Broadcasting: " + message);
         byte[] msg = Encoding.Unicode.GetBytes(message);
-        foreach (var client in _clients)
+        var clients = exceptConnectionId.HasValue
+            ? _clients.Where(w => w.Key != exceptConnectionId.Value)
+            : _clients;
+        foreach (var client in clients)
         {
             NetworkTransport.Send(_hostID, client.Value.ConnectionId, channelId, msg, msg.Length, out _error);
         }
@@ -87,9 +88,12 @@ public class Server : MonoBehaviour
         var msg = data.Split('|');
         switch (msg[0])
         {
-            case CommandAliases.AnswerName:
+            case CommandAliases.AnswerName: // client answering name: ANSN|<NAME>
                 var playerName = msg[1];
                 _clients[connectionId].PlayerName = playerName;
+                Broadcast($"{CommandAliases.PlayerConnected}|{connectionId}={playerName}", _reliableChannel, connectionId);
+                var players = _clients.Where(w => w.Key != connectionId && !string.IsNullOrEmpty(w.Value.PlayerName)).Select(s => $"{s.Value.ConnectionId}={s.Value.PlayerName}");
+                Send($"{CommandAliases.Players}|{string.Join("|", players)}", _reliableChannel, connectionId);
                 break;
             default:
                 break;
@@ -101,7 +105,6 @@ public class Server : MonoBehaviour
         Debug.Log("Player " + connectionId + " has connected");
         var connectedClient = new ConnectedClient() { ConnectionId = connectionId };
         _clients[connectionId] = connectedClient;
-
         Send(CommandAliases.AskName + "|" + connectionId, _reliableChannel, connectionId);
     }
 
@@ -109,5 +112,6 @@ public class Server : MonoBehaviour
     {
         Debug.Log("Player " + connectionId + " has disconnected");
         _clients.Remove(connectionId);
+        Broadcast($"{CommandAliases.PlayerDisconnected}|{connectionId}", _reliableChannel);
     }
 }

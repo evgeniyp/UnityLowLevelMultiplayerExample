@@ -1,18 +1,32 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 
+internal class Player
+{
+    public int PlayerId;
+    public string PlayerName;
+    public GameObject Instance;
+}
+
 public class Client : MonoBehaviour
 {
+    public GameObject PlayerPrefab;
+
+    #region Connection properties
     private int _connectionId;
     private int _hostID;
-    private int _webHostId;
     private int _reliableChannel;
     private int _unreliableChannel;
-    private bool _isConnected;
-    private float _connectionTime;
     private byte _error;
+    #endregion
+
+    private bool _isConnected;
+    private bool _isStarted;
+
+    private readonly Dictionary<int, Player> _players = new Dictionary<int, Player>();
 
     private string _playerName;
     private int _playerId;
@@ -33,17 +47,14 @@ public class Client : MonoBehaviour
 
         NetworkTransport.Init();
         ConnectionConfig cc = new ConnectionConfig();
-        _reliableChannel = cc.AddChannel(QosType.Reliable);
+        _reliableChannel = cc.AddChannel(QosType.ReliableSequenced);
         _unreliableChannel = cc.AddChannel(QosType.Unreliable);
-
         HostTopology topo = new HostTopology(cc, Consts.MAX_CONNECTION);
-
         _hostID = NetworkTransport.AddHost(topo, 0);
         _connectionId = NetworkTransport.Connect(_hostID, "127.0.0.1", Consts.PORT, 0, out _error);
 
         if ((NetworkError)_error == NetworkError.Ok)
         {
-            _connectionTime = Time.time;
             _isConnected = true;
             Debug.Log("Connected");
         }
@@ -87,13 +98,57 @@ public class Client : MonoBehaviour
         var msg = data.Split('|');
         switch (msg[0])
         {
-            case CommandAliases.AskName:
+            case CommandAliases.AskName: // server asking name and sending an ID: ASKN|<ID>
                 _playerId = int.Parse(msg[1]);
+                GameObject.Find("PlayerId").GetComponent<Text>().text = msg[1];
                 Send(CommandAliases.AnswerName + '|' + _playerName, _reliableChannel);
+                break;
+            case CommandAliases.Players: // server sends exact list of players: PLRS|<ID>=<NAME>|<ID>=<NAME|...
+                {
+                    for (int i = 1; i < msg.Length; i++)
+                    {
+                        var idNameArr = msg[i].Split('=');
+                        SpawnPlayer(int.Parse(idNameArr[0]), idNameArr[1]);
+                    }
+                    break;
+                }
+            case CommandAliases.PlayerConnected: // PLRCON|<ID>=<NAME>
+                {
+                    var details = msg[1].Split('=');
+                    SpawnPlayer(int.Parse(details[0]), details[1]);
+                    break;
+                }
+            case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
+                DestroyPlayer(int.Parse(msg[1]));
                 break;
             default:
                 break;
         }
     }
 
+    private void SpawnPlayer(int playerId, string playerName)
+    {
+        if (!_players.ContainsKey(playerId))
+        {
+            var instance = Instantiate(PlayerPrefab);
+            if (playerId == _playerId)
+            {
+                GameObject.Find("Canvas").SetActive(false);
+                _isStarted = true;
+            }
+
+            var player = new Player() { Instance = instance, PlayerId = playerId, PlayerName = playerName };
+            player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
+            _players.Add(playerId, player);
+        }
+    }
+
+    private void DestroyPlayer(int playerId)
+    {
+        if (_players.ContainsKey(playerId))
+        {
+            Destroy(_players[playerId].Instance);
+            _players.Remove(playerId);
+        }
+    }
 }
