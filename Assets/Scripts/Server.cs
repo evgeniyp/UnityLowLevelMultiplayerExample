@@ -63,6 +63,16 @@ public class Server : MonoBehaviour
         }
     }
 
+    private void Broadcast(string message, int channelId)
+    {
+        Debug.Log("Broadcasting: " + message);
+        byte[] msg = Encoding.Unicode.GetBytes(message);
+        foreach (var client in _clients)
+        {
+            NetworkTransport.Send(_hostID, client.Value.ConnectionId, channelId, msg, msg.Length, out _error);
+        }
+    }
+
     private void Send(string message, int channelId, int connectionId)
     {
         Debug.Log("Sending to player " + connectionId + ": " + message);
@@ -92,7 +102,7 @@ public class Server : MonoBehaviour
         var connectedClient = new ConnectedClient() { ConnectionId = connectionId };
         _clients[connectionId] = connectedClient;
 
-        Send(CommandAliases.AskName, _reliableChannel, connectionId);
+        Send(CommandAliases.AskName + "|" + connectionId, _reliableChannel, connectionId);
     }
 
     private void OnDisconnection(int connectionId)

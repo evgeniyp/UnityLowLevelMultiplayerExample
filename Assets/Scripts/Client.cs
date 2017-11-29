@@ -15,6 +15,7 @@ public class Client : MonoBehaviour
     private byte _error;
 
     private string _playerName;
+    private int _playerId;
 
     public void Connect()
     {
@@ -87,6 +88,7 @@ public class Client : MonoBehaviour
         switch (msg[0])
         {
             case CommandAliases.AskName:
+                _playerId = int.Parse(msg[1]);
                 Send(CommandAliases.AnswerName + '|' + _playerName, _reliableChannel);
                 break;
             default:
