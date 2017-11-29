@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Text;
+using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 
@@ -62,6 +63,7 @@ public class Client : MonoBehaviour
         switch (recData)
         {
             case NetworkEventType.DataEvent:
+                OnData(Encoding.Unicode.GetString(recBuffer, 0, dataSize));
                 break;
             case NetworkEventType.DisconnectEvent:
                 _isConnected = false;
@@ -69,4 +71,27 @@ public class Client : MonoBehaviour
                 break;
         }
     }
+
+    private void Send(string message, int channelId)
+    {
+        Debug.Log("Sending to server: " + message);
+        byte[] msg = Encoding.Unicode.GetBytes(message);
+        NetworkTransport.Send(_hostID, _connectionId, channelId, msg, msg.Length, out _error);
+    }
+
+    private void OnData(string data)
+    {
+        Debug.Log("Server has sent: " + data);
+
+        var msg = data.Split('|');
+        switch (msg[0])
+        {
+            case CommandAliases.AskName:
+                Send(CommandAliases.AnswerName + '|' + _playerName, _reliableChannel);
+                break;
+            default:
+                break;
+        }
+    }
+
 }

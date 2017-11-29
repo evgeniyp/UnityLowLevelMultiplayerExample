@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -67,22 +65,34 @@ public class Server : MonoBehaviour
 
     private void Send(string message, int channelId, int connectionId)
     {
+        Debug.Log("Sending to player " + connectionId + ": " + message);
         byte[] msg = Encoding.Unicode.GetBytes(message);
-        NetworkTransport.Send(_hostID, connectionId, channelId, msg, msg.Length * sizeof(char), out _error);
+        NetworkTransport.Send(_hostID, connectionId, channelId, msg, msg.Length, out _error);
     }
 
     private void OnData(int connectionId, string data)
     {
         Debug.Log("Player " + connectionId + " has sent: " + data);
+
+        var msg = data.Split('|');
+        switch (msg[0])
+        {
+            case CommandAliases.AnswerName:
+                var playerName = msg[1];
+                _clients[connectionId].PlayerName = playerName;
+                break;
+            default:
+                break;
+        }
     }
 
     private void OnConnection(int connectionId)
     {
         Debug.Log("Player " + connectionId + " has connected");
-        var ConnectedClient = new ConnectedClient() { ConnectionId = connectionId };
-        _clients[connectionId] = ConnectedClient;
+        var connectedClient = new ConnectedClient() { ConnectionId = connectionId };
+        _clients[connectionId] = connectedClient;
 
-        Send("ASKNAME", _reliableChannel, connectionId);
+        Send(CommandAliases.AskName, _reliableChannel, connectionId);
     }
 
     private void OnDisconnection(int connectionId)
