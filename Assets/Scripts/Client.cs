@@ -8,7 +8,7 @@ internal class NetworkPlayer
 {
     public int PlayerId;
     public string PlayerName;
-    public GameObject Instance;
+    public Player Instance;
 }
 
 public class Client : MonoBehaviour
@@ -145,7 +145,7 @@ public class Client : MonoBehaviour
                         continue;
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
-                    _players[playerId].Instance.transform.position = position;
+                    _players[playerId].Instance.TargetPosition = position;
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
@@ -160,20 +160,19 @@ public class Client : MonoBehaviour
     {
         if (!_players.ContainsKey(playerId))
         {
-            var instance = Instantiate(PlayerPrefab);
+            var instance = Instantiate(PlayerPrefab).GetComponent<Player>();
 
             var player = new NetworkPlayer() { Instance = instance, PlayerId = playerId, PlayerName = playerName };
             _players.Add(playerId, player);
 
             player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
-            player.Instance.transform.position = new Vector3(50 * playerId, 0, 0);
-
-            var prefab = player.Instance.GetComponent<Player>();
-            prefab.Client = this;
+            player.Instance.transform.position = new Vector3(0, 0, 0);
+            player.Instance.TargetPosition = player.Instance.transform.position;
+            player.Instance.Client = this;
 
             if (playerId == _playerId)
             {
-                prefab.IsMe = true;
+                player.Instance.IsMe = true;
 
                 _canvas.SetActive(false);
                 _isStarted = true;
