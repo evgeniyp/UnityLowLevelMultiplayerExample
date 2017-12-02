@@ -79,6 +79,8 @@ public class Client : MonoBehaviour
         int bufferSize = 1024;
         int dataSize;
         NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
+        if (_error != 0)
+            Debug.Log($"NetoworkError: {(NetworkError)_error}");
         switch (recData)
         {
             case NetworkEventType.DataEvent:
@@ -103,7 +105,10 @@ public class Client : MonoBehaviour
 
     public void SendPosition(Vector3 position)
     {
-        Send($"{CommandAliases.MyPosition}|{position.x}|{position.y}|{position.z}", _reliableChannel);
+        if (_isStarted == false)
+            return;
+
+        Send($"{CommandAliases.MyPosition}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
     }
 
     private void OnData(string data)
@@ -131,9 +136,17 @@ public class Client : MonoBehaviour
                     SpawnPlayer(int.Parse(details[0]), details[1]);
                     break;
                 }
-            case CommandAliases.PlayerPosition:
-                var position = new Vector3(float.Parse(msg[2]), float.Parse(msg[3]), float.Parse(msg[4]));
-                _players[int.Parse(msg[1])].Instance.transform.position = position;
+            case CommandAliases.PlayersPosition: // server sends position of players PLRSPOS|<ID>=<X>|<Y>|<Z>|<ID>=<X>|<Y>|<Z>|...
+                for (int i = 1; i < msg.Length; i++)
+                {
+                    var idNameArr = msg[i].Split('=');
+                    var playerId = int.Parse(idNameArr[0]);
+                    if (playerId == _playerId)
+                        continue;
+                    var positionArr = idNameArr[1].Split(';');
+                    var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
+                    _players[playerId].Instance.transform.position = position;
+                }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
                 DestroyPlayer(int.Parse(msg[1]));

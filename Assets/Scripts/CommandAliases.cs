@@ -5,7 +5,7 @@
     public const string Players = "PLRS";               // server sends exact list of players: PLRS|<ID>=<NAME>|<ID>=<NAME|...
     public const string PlayerConnected = "PLRCON";     // PLRCON|<ID>=<NAME>
     public const string PlayerDisconnected = "PLRDIS";  // PLRDIS|<ID>
-    public const string PlayerPosition = "PLRPOS";      // server sends position of client PLRPOS|<ID>|<X>|<Y>|<Z>
+    public const string PlayersPosition = "PLRSPOS";      // server sends position of players PLRSPOS|<ID>=<X>;<Y>;<Z>|<ID>=<X>;<Y>;<Z>|...
 
     // sent by client
     public const string AnswerName = "ANSN";            // client answers to AskName and sends his name: ANSN|<NAME>

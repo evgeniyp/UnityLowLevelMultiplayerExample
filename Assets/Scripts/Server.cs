@@ -8,6 +8,7 @@ internal class ConnectedClient
 {
     public int ConnectionId;
     public string PlayerName;
+    public Vector3 Position;
 }
 
 public class Server : MonoBehaviour
@@ -47,6 +48,8 @@ public class Server : MonoBehaviour
         int bufferSize = 1024;
         int dataSize;
         NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
+        if (_error != 0)
+            Debug.Log($"NetoworkError: {(NetworkError)_error}");
         switch (recData)
         {
             case NetworkEventType.ConnectEvent:
@@ -59,6 +62,16 @@ public class Server : MonoBehaviour
                 OnDisconnection(connectionId);
                 break;
         }
+    }
+
+    private void FixedUpdate()
+    {
+        if (_clients.Count() < 2)
+            return;
+
+        var positionsArr = _clients.Select(s => $"{s.Value.ConnectionId}={s.Value.Position.x};{s.Value.Position.y};{s.Value.Position.z}");
+        var positionsStr = string.Join("|", positionsArr);
+        Broadcast($"{CommandAliases.PlayersPosition}|{positionsStr}", _unreliableChannel);
     }
 
     private void Broadcast(string message, int channelId, int? exceptConnectionId = null)
@@ -96,7 +109,7 @@ public class Server : MonoBehaviour
                 Send($"{CommandAliases.Players}|{string.Join("|", players)}", _reliableChannel, connectionId);
                 break;
             case CommandAliases.MyPosition:
-                Broadcast($"{CommandAliases.PlayerPosition}|{connectionId}|{msg[1]}|{msg[2]}|{msg[3]}", _reliableChannel, connectionId);
+                _clients[connectionId].Position = new Vector3(float.Parse(msg[1]), float.Parse(msg[2]), float.Parse(msg[3]));
                 break;
             default:
                 break;
