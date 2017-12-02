@@ -72,27 +72,33 @@ public class Client : MonoBehaviour
         if (!_isConnected)
             return;
 
-        int recHostId;
-        int connectionId;
-        int channelId;
-        byte[] recBuffer = new byte[1024];
-        int bufferSize = 1024;
-        int dataSize;
-        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
-        if (_error != 0)
-            Debug.Log($"NetoworkError: {(NetworkError)_error}");
-        switch (recData)
+        while (true)
         {
-            case NetworkEventType.DataEvent:
-                OnData(Encoding.Unicode.GetString(recBuffer, 0, dataSize));
-                break;
-            case NetworkEventType.DisconnectEvent:
-                Debug.Log("Disconnected");
-                _isConnected = false;
-                DestroyAllPlayers();
-                _canvas.SetActive(true);
-                _isStarted = false;
-                break;
+
+            int recHostId;
+            int connectionId;
+            int channelId;
+            byte[] recBuffer = new byte[1024];
+            int bufferSize = 1024;
+            int dataSize;
+            NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
+            if (_error != 0)
+                Debug.Log($"NetoworkError: {(NetworkError)_error}");
+            switch (recData)
+            {
+                case NetworkEventType.Nothing:
+                    return;
+                case NetworkEventType.DataEvent:
+                    OnData(Encoding.Unicode.GetString(recBuffer, 0, dataSize));
+                    break;
+                case NetworkEventType.DisconnectEvent:
+                    Debug.Log("Disconnected");
+                    _isConnected = false;
+                    DestroyAllPlayers();
+                    _canvas.SetActive(true);
+                    _isStarted = false;
+                    break;
+            }
         }
     }
 
@@ -136,8 +142,9 @@ public class Client : MonoBehaviour
                     SpawnPlayer(int.Parse(details[0]), details[1]);
                     break;
                 }
-            case CommandAliases.PlayersPosition: // server sends position of players PLRSPOS|<ID>=<X>|<Y>|<Z>|<ID>=<X>|<Y>|<Z>|...
-                for (int i = 1; i < msg.Length; i++)
+            case CommandAliases.PlayersPosition: // server sends position of players PLRSPOS|<TICK>|<ID>=<X>;<Y>;<Z>|<ID>=<X>;<Y>;<Z>|...
+                var tick = int.Parse(msg[1]);
+                for (int i = 2; i < msg.Length; i++)
                 {
                     var idNameArr = msg[i].Split('=');
                     var playerId = int.Parse(idNameArr[0]);
@@ -145,7 +152,7 @@ public class Client : MonoBehaviour
                         continue;
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
-                    _players[playerId].Instance.TargetPosition = position;
+                    _players[playerId].Instance.SetPosition(tick, position);
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
@@ -166,8 +173,6 @@ public class Client : MonoBehaviour
             _players.Add(playerId, player);
 
             player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
-            player.Instance.transform.position = new Vector3(0, 0, 0);
-            player.Instance.TargetPosition = player.Instance.transform.position;
             player.Instance.Client = this;
 
             if (playerId == _playerId)

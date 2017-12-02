@@ -21,6 +21,7 @@ public class Server : MonoBehaviour
     #endregion
 
     private bool _isStarted;
+    private int _tick;
 
     private readonly Dictionary<int, ConnectedClient> _clients = new Dictionary<int, ConnectedClient>();
 
@@ -41,37 +42,43 @@ public class Server : MonoBehaviour
         if (!_isStarted)
             return;
 
-        int recHostId;
-        int connectionId;
-        int channelId;
-        byte[] recBuffer = new byte[1024];
-        int bufferSize = 1024;
-        int dataSize;
-        NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
-        if (_error != 0)
-            Debug.Log($"NetoworkError: {(NetworkError)_error}");
-        switch (recData)
+        while (true)
         {
-            case NetworkEventType.ConnectEvent:
-                OnConnection(connectionId);
-                break;
-            case NetworkEventType.DataEvent:
-                OnData(connectionId, Encoding.Unicode.GetString(recBuffer, 0, dataSize));
-                break;
-            case NetworkEventType.DisconnectEvent:
-                OnDisconnection(connectionId);
-                break;
+            int recHostId;
+            int connectionId;
+            int channelId;
+            byte[] recBuffer = new byte[1024];
+            int bufferSize = 1024;
+            int dataSize;
+            NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
+            if (_error != 0)
+                Debug.Log($"NetoworkError: {(NetworkError)_error}");
+            switch (recData)
+            {
+                case NetworkEventType.Nothing:
+                    return;
+                case NetworkEventType.ConnectEvent:
+                    OnConnection(connectionId);
+                    break;
+                case NetworkEventType.DataEvent:
+                    OnData(connectionId, Encoding.Unicode.GetString(recBuffer, 0, dataSize));
+                    break;
+                case NetworkEventType.DisconnectEvent:
+                    OnDisconnection(connectionId);
+                    break;
+            }
         }
     }
 
     private void FixedUpdate()
     {
+        _tick++;
         if (_clients.Count() < 2)
             return;
 
         var positionsArr = _clients.Select(s => $"{s.Value.ConnectionId}={s.Value.Position.x};{s.Value.Position.y};{s.Value.Position.z}");
         var positionsStr = string.Join("|", positionsArr);
-        Broadcast($"{CommandAliases.PlayersPosition}|{positionsStr}", _unreliableChannel);
+        Broadcast($"{CommandAliases.PlayersPosition}|{_tick}|{positionsStr}", _unreliableChannel);
     }
 
     private void Broadcast(string message, int channelId, int? exceptConnectionId = null)
