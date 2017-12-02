@@ -95,6 +95,9 @@ public class Server : MonoBehaviour
                 var players = _clients.Where(w => !string.IsNullOrEmpty(w.Value.PlayerName)).Select(s => $"{s.Value.ConnectionId}={s.Value.PlayerName}");
                 Send($"{CommandAliases.Players}|{string.Join("|", players)}", _reliableChannel, connectionId);
                 break;
+            case CommandAliases.MyPosition:
+                Broadcast($"{CommandAliases.PlayerPosition}|{connectionId}|{msg[1]}|{msg[2]}|{msg[3]}", _reliableChannel, connectionId);
+                break;
             default:
                 break;
         }

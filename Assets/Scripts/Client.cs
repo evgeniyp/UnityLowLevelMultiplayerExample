@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 
-internal class Player
+internal class NetworkPlayer
 {
     public int PlayerId;
     public string PlayerName;
@@ -26,7 +26,7 @@ public class Client : MonoBehaviour
     private bool _isConnected;
     private bool _isStarted;
 
-    private readonly Dictionary<int, Player> _players = new Dictionary<int, Player>();
+    private readonly Dictionary<int, NetworkPlayer> _players = new Dictionary<int, NetworkPlayer>();
 
     private string _playerName;
     private int _playerId;
@@ -101,6 +101,11 @@ public class Client : MonoBehaviour
         NetworkTransport.Send(_hostID, _connectionId, channelId, msg, msg.Length, out _error);
     }
 
+    public void SendPosition(Vector3 position)
+    {
+        Send($"{CommandAliases.MyPosition}|{position.x}|{position.y}|{position.z}", _reliableChannel);
+    }
+
     private void OnData(string data)
     {
         Debug.Log("Server has sent: " + data);
@@ -114,20 +119,22 @@ public class Client : MonoBehaviour
                 Send(CommandAliases.AnswerName + '|' + _playerName, _reliableChannel);
                 break;
             case CommandAliases.Players: // server sends exact list of players: PLRS|<ID>=<NAME>|<ID>=<NAME|...
+                for (int i = 1; i < msg.Length; i++)
                 {
-                    for (int i = 1; i < msg.Length; i++)
-                    {
-                        var idNameArr = msg[i].Split('=');
-                        SpawnPlayer(int.Parse(idNameArr[0]), idNameArr[1]);
-                    }
-                    break;
+                    var idNameArr = msg[i].Split('=');
+                    SpawnPlayer(int.Parse(idNameArr[0]), idNameArr[1]);
                 }
+                break;
             case CommandAliases.PlayerConnected: // PLRCON|<ID>=<NAME>
                 {
                     var details = msg[1].Split('=');
                     SpawnPlayer(int.Parse(details[0]), details[1]);
                     break;
                 }
+            case CommandAliases.PlayerPosition:
+                var position = new Vector3(float.Parse(msg[2]), float.Parse(msg[3]), float.Parse(msg[4]));
+                _players[int.Parse(msg[1])].Instance.transform.position = position;
+                break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
                 DestroyPlayer(int.Parse(msg[1]));
                 break;
@@ -141,16 +148,23 @@ public class Client : MonoBehaviour
         if (!_players.ContainsKey(playerId))
         {
             var instance = Instantiate(PlayerPrefab);
+
+            var player = new NetworkPlayer() { Instance = instance, PlayerId = playerId, PlayerName = playerName };
+            _players.Add(playerId, player);
+
+            player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
+            player.Instance.transform.position = new Vector3(50 * playerId, 0, 0);
+
+            var prefab = player.Instance.GetComponent<Player>();
+            prefab.Client = this;
+
             if (playerId == _playerId)
             {
+                prefab.IsMe = true;
+
                 _canvas.SetActive(false);
                 _isStarted = true;
             }
-
-            var player = new Player() { Instance = instance, PlayerId = playerId, PlayerName = playerName };
-            player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
-            player.Instance.transform.position = new Vector3(50 * playerId, 0, 0);
-            _players.Add(playerId, player);
         }
     }
 
