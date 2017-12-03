@@ -10,10 +10,13 @@ internal class ConnectedClient
     public string PlayerName;
     public Vector3 Position;
     public int Tick;
+    public Player Instance;
 }
 
 public class Server : MonoBehaviour
 {
+    public GameObject PlayerPrefab;
+
     #region Connection properties
     private int _hostID;
     private int _reliableChannel;
@@ -74,8 +77,6 @@ public class Server : MonoBehaviour
     private void FixedUpdate()
     {
         _tick++;
-        if (_clients.Count() < 2)
-            return;
 
         var positionsArr = _clients.Select(s => $"{s.Value.ConnectionId}={s.Value.Position.x};{s.Value.Position.y};{s.Value.Position.z}");
         var positionsStr = string.Join("|", positionsArr);
@@ -112,6 +113,8 @@ public class Server : MonoBehaviour
             case CommandAliases.AnswerName:
                 var playerName = msg[1];
                 _clients[connectionId].PlayerName = playerName;
+                _clients[connectionId].Instance.GetComponentInChildren<TextMesh>().text = playerName;
+
                 Broadcast($"{CommandAliases.PlayerConnected}|{connectionId}={playerName}", _reliableChannel, connectionId);
                 var players = _clients.Where(w => !string.IsNullOrEmpty(w.Value.PlayerName)).Select(s => $"{s.Value.ConnectionId}={s.Value.PlayerName}");
                 Send($"{CommandAliases.Players}|{string.Join("|", players)}", _reliableChannel, connectionId);
@@ -119,10 +122,17 @@ public class Server : MonoBehaviour
             case CommandAliases.MyPosition:
                 var tick = int.Parse(msg[1]);
                 var client = _clients[connectionId];
-                if (tick <= client.Tick)
-                    return;
+
+                if (tick < client.Tick && client.Tick != 0)
+                {
+                    Debug.LogWarning($"Incoming tick {tick} is from the past, and not initial tick. Expecting {client.Tick + 1}. Skipping.");
+                    break;
+                }
+
                 client.Tick = tick;
-                client.Position = new Vector3(float.Parse(msg[2]), float.Parse(msg[3]), float.Parse(msg[4]));
+                var position = new Vector3(float.Parse(msg[2]), float.Parse(msg[3]), float.Parse(msg[4]));
+                client.Position = position;
+                client.Instance.transform.position = position;
                 break;
             default:
                 break;
@@ -132,7 +142,10 @@ public class Server : MonoBehaviour
     private void OnConnection(int connectionId)
     {
         Debug.Log("Player " + connectionId + " has connected");
-        var connectedClient = new ConnectedClient() { ConnectionId = connectionId };
+        var instance = Instantiate(PlayerPrefab).GetComponent<Player>();
+        instance.IsOwnedByServer = true;
+        instance.GetComponentInChildren<TextMesh>().text = "";
+        var connectedClient = new ConnectedClient() { ConnectionId = connectionId, Instance = instance };
         _clients[connectionId] = connectedClient;
         Send(CommandAliases.AskName + "|" + connectionId, _reliableChannel, connectionId);
     }
@@ -140,7 +153,10 @@ public class Server : MonoBehaviour
     private void OnDisconnection(int connectionId)
     {
         Debug.Log("Player " + connectionId + " has disconnected");
+        var instance = _clients[connectionId].Instance;
+        _clients[connectionId].Instance = null;
         _clients.Remove(connectionId);
+        Destroy(instance.gameObject);
         Broadcast($"{CommandAliases.PlayerDisconnected}|{connectionId}", _reliableChannel, connectionId);
     }
 }

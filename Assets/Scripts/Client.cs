@@ -116,14 +116,14 @@ public class Client : MonoBehaviour
 
     private void Send(string message, int channelId)
     {
-        Debug.Log("Sending to server: " + message);
+        //Debug.Log("Sending to server: " + message);
         byte[] msg = Encoding.Unicode.GetBytes(message);
         NetworkTransport.Send(_hostID, _connectionId, channelId, msg, msg.Length, out _error);
     }
 
     private void OnData(string data)
     {
-        Debug.Log("Server has sent: " + data);
+        //Debug.Log("Server has sent: " + data);
 
         var msg = data.Split('|');
         switch (msg[0])
@@ -193,7 +193,7 @@ public class Client : MonoBehaviour
     {
         if (_players.ContainsKey(playerId))
         {
-            Destroy(_players[playerId].Instance);
+            Destroy(_players[playerId].Instance.gameObject);
             _players.Remove(playerId);
         }
     }
@@ -201,7 +201,7 @@ public class Client : MonoBehaviour
     private void DestroyAllPlayers()
     {
         foreach (var player in _players)
-            Destroy(player.Value.Instance);
+            Destroy(player.Value.Instance.gameObject);
         _players.Clear();
     }
 }
