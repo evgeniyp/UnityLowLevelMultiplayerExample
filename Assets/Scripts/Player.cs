@@ -5,15 +5,16 @@ using UnityEngine;
 public class Player : MonoBehaviour
 {
     public bool IsMe;
-    public Client Client;
     public float Speed = 500f;
+
+    private float _firstTickTime;
+    private int _firstTick;
 
     private Vector3 _prevPosition;
     private int _prevTick;
 
     private Vector3 _nextPosition;
     private int _nextTick;
-    private float _nextTickTime;
 
     void Start()
     {
@@ -25,38 +26,49 @@ public class Player : MonoBehaviour
     {
         if (!IsMe)
         {
-            var lastFrame = (_nextTick - _prevTick) * Time.fixedDeltaTime;
-            var thisFrame = Time.time - _nextTickTime;
-            transform.position = Vector3.LerpUnclamped(_prevPosition, _nextPosition, 1 + thisFrame / lastFrame);
+            if (_nextTick == _prevTick)
+                return;
+
+            var lastDeltaTickLength = (_nextTick - _prevTick) * Time.fixedDeltaTime;
+            var lastTickTime = _firstTickTime + (_nextTick - _firstTick) * Time.fixedDeltaTime;
+            var timeSinceLastTick = Time.time - lastTickTime;
+            transform.position = Vector3.LerpUnclamped(_prevPosition, _nextPosition, 1 + timeSinceLastTick / lastDeltaTickLength);
         }
         else
         {
             var movementVector = new Vector3()
             {
-                x = Input.GetAxis("Horizontal") * Time.deltaTime * Speed,
-                y = Input.GetAxis("Vertical") * Time.deltaTime * Speed
+                x = Input.GetAxisRaw("Horizontal") * Time.deltaTime * Speed,
+                y = Input.GetAxisRaw("Vertical") * Time.deltaTime * Speed
             };
             transform.position += movementVector;
         }
     }
 
-    void FixedUpdate()
-    {
-        if (!IsMe) return;
-
-        Client.SendPosition(transform.position);
-    }
-
     public void SetPosition(int tick, Vector3 position)
     {
-        if (tick <= _prevTick)
+        if (tick <= _nextTick)
+        {
+            Debug.LogWarning($"tick {tick} less than last received tick {_nextTick}");
             return;
+        }
+
+        if (tick - _nextTick > 1)
+        {
+            Debug.LogWarning($"tick {tick} is greater than last received tick {_nextTick} by 2 or more");
+        }
+
+        if (_firstTick == 0)
+        {
+            _firstTick = tick;
+            _firstTickTime = Time.time;
+        }
 
         _prevPosition = _nextPosition;
         _prevTick = _nextTick;
 
         _nextPosition = position;
         _nextTick = tick;
-        _nextTickTime = Time.time;
+
     }
 }

@@ -9,7 +9,7 @@
 
     // sent by client
     public const string AnswerName = "ANSN";            // client answers to AskName and sends his name: ANSN|<NAME>
-    public const string MyPosition = "MYPOS";           // client sends his position MYPOS|<X>|<Y>|<Z>
+    public const string MyPosition = "MYPOS";           // client sends his position MYPOS|<TICK>|<X>|<Y>|<Z>
 
     // sent by both
 }

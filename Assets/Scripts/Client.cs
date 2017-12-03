@@ -26,6 +26,8 @@ public class Client : MonoBehaviour
     private bool _isConnected;
     private bool _isStarted;
 
+    private int _tick;
+
     private readonly Dictionary<int, NetworkPlayer> _players = new Dictionary<int, NetworkPlayer>();
 
     private string _playerName;
@@ -102,19 +104,21 @@ public class Client : MonoBehaviour
         }
     }
 
+    public void FixedUpdate()
+    {
+        if (_isStarted == false)
+            return;
+
+        var me = _players[_playerId].Instance;
+        var position = me.transform.position;
+        Send($"{CommandAliases.MyPosition}|{_tick}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
+    }
+
     private void Send(string message, int channelId)
     {
         Debug.Log("Sending to server: " + message);
         byte[] msg = Encoding.Unicode.GetBytes(message);
         NetworkTransport.Send(_hostID, _connectionId, channelId, msg, msg.Length, out _error);
-    }
-
-    public void SendPosition(Vector3 position)
-    {
-        if (_isStarted == false)
-            return;
-
-        Send($"{CommandAliases.MyPosition}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
     }
 
     private void OnData(string data)
@@ -143,7 +147,7 @@ public class Client : MonoBehaviour
                     break;
                 }
             case CommandAliases.PlayersPosition: // server sends position of players PLRSPOS|<TICK>|<ID>=<X>;<Y>;<Z>|<ID>=<X>;<Y>;<Z>|...
-                var tick = int.Parse(msg[1]);
+                _tick = int.Parse(msg[1]);
                 for (int i = 2; i < msg.Length; i++)
                 {
                     var idNameArr = msg[i].Split('=');
@@ -152,7 +156,8 @@ public class Client : MonoBehaviour
                         continue;
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
-                    _players[playerId].Instance.SetPosition(tick, position);
+                    if (_players.ContainsKey(playerId))
+                        _players[playerId].Instance.SetPosition(_tick, position);
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
@@ -173,7 +178,6 @@ public class Client : MonoBehaviour
             _players.Add(playerId, player);
 
             player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
-            player.Instance.Client = this;
 
             if (playerId == _playerId)
             {

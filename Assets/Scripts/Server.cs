@@ -9,6 +9,7 @@ internal class ConnectedClient
     public int ConnectionId;
     public string PlayerName;
     public Vector3 Position;
+    public int Tick;
 }
 
 public class Server : MonoBehaviour
@@ -52,7 +53,7 @@ public class Server : MonoBehaviour
             int dataSize;
             NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
             if (_error != 0)
-                Debug.Log($"NetoworkError: {(NetworkError)_error}");
+                Debug.Log($"NetworkError: {(NetworkError)_error}");
             switch (recData)
             {
                 case NetworkEventType.Nothing:
@@ -83,32 +84,32 @@ public class Server : MonoBehaviour
 
     private void Broadcast(string message, int channelId, int? exceptConnectionId = null)
     {
-        Debug.Log("Broadcasting: " + message);
+        //Debug.Log("Broadcasting: " + message);
         byte[] msg = Encoding.Unicode.GetBytes(message);
         var clients = exceptConnectionId.HasValue
             ? _clients.Where(w => w.Key != exceptConnectionId.Value)
             : _clients;
         foreach (var client in clients)
         {
-            NetworkTransport.Send(_hostID, client.Value.ConnectionId, channelId, msg, msg.Length, out _error);
+            NetworkTransport.Send(_hostID, client.Key, channelId, msg, msg.Length, out _error);
         }
     }
 
     private void Send(string message, int channelId, int connectionId)
     {
-        Debug.Log("Sending to player " + connectionId + ": " + message);
+        //Debug.Log("Sending to player " + connectionId + ": " + message);
         byte[] msg = Encoding.Unicode.GetBytes(message);
         NetworkTransport.Send(_hostID, connectionId, channelId, msg, msg.Length, out _error);
     }
 
     private void OnData(int connectionId, string data)
     {
-        Debug.Log("Player " + connectionId + " has sent: " + data);
+        //Debug.Log("Player " + connectionId + " has sent: " + data);
 
         var msg = data.Split('|');
         switch (msg[0])
         {
-            case CommandAliases.AnswerName: // client answering name: ANSN|<NAME>
+            case CommandAliases.AnswerName:
                 var playerName = msg[1];
                 _clients[connectionId].PlayerName = playerName;
                 Broadcast($"{CommandAliases.PlayerConnected}|{connectionId}={playerName}", _reliableChannel, connectionId);
@@ -116,7 +117,12 @@ public class Server : MonoBehaviour
                 Send($"{CommandAliases.Players}|{string.Join("|", players)}", _reliableChannel, connectionId);
                 break;
             case CommandAliases.MyPosition:
-                _clients[connectionId].Position = new Vector3(float.Parse(msg[1]), float.Parse(msg[2]), float.Parse(msg[3]));
+                var tick = int.Parse(msg[1]);
+                var client = _clients[connectionId];
+                if (tick <= client.Tick)
+                    return;
+                client.Tick = tick;
+                client.Position = new Vector3(float.Parse(msg[2]), float.Parse(msg[3]), float.Parse(msg[4]));
                 break;
             default:
                 break;
@@ -135,6 +141,6 @@ public class Server : MonoBehaviour
     {
         Debug.Log("Player " + connectionId + " has disconnected");
         _clients.Remove(connectionId);
-        Broadcast($"{CommandAliases.PlayerDisconnected}|{connectionId}", _reliableChannel);
+        Broadcast($"{CommandAliases.PlayerDisconnected}|{connectionId}", _reliableChannel, connectionId);
     }
 }
