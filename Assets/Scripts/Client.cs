@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -76,7 +77,6 @@ public class Client : MonoBehaviour
 
         while (true)
         {
-
             int recHostId;
             int connectionId;
             int channelId;
@@ -85,7 +85,7 @@ public class Client : MonoBehaviour
             int dataSize;
             NetworkEventType recData = NetworkTransport.Receive(out recHostId, out connectionId, out channelId, recBuffer, bufferSize, out dataSize, out _error);
             if (_error != 0)
-                Debug.Log($"NetoworkError: {(NetworkError)_error}");
+                Debug.Log($"NetworkError: {(NetworkError)_error}");
             switch (recData)
             {
                 case NetworkEventType.Nothing:
@@ -109,9 +109,9 @@ public class Client : MonoBehaviour
         if (_isStarted == false)
             return;
 
-        var me = _players[_playerId].Instance;
-        var position = me.transform.position;
-        Send($"{CommandAliases.MyPosition}|{_tick}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
+        //var me = _players[_playerId].Instance;
+        //var position = me.transform.position;
+        //Send($"{CommandAliases.MyPosition}|{_tick}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
     }
 
     private void Send(string message, int channelId)
@@ -157,7 +157,7 @@ public class Client : MonoBehaviour
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
                     if (_players.ContainsKey(playerId))
-                        _players[playerId].Instance.SetPosition(_tick, position);
+                        _players[playerId].Instance.Position = position;
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
@@ -166,6 +166,11 @@ public class Client : MonoBehaviour
             default:
                 break;
         }
+    }
+
+    private void PlayerFixedUpdate(Vector3 v)
+    {
+        Send($"{CommandAliases.MyInput}|{_tick}|{v.x}|{v.y}|{v.z}", _unreliableChannel);
     }
 
     private void SpawnPlayer(int playerId, string playerName)
@@ -181,8 +186,8 @@ public class Client : MonoBehaviour
 
             if (playerId == _playerId)
             {
-                player.Instance.IsMe = true;
-
+                player.Instance.Type = PlayerObjectType.ThisPlayer;
+                player.Instance.OnFixedUpdate += PlayerFixedUpdate;
                 _canvas.SetActive(false);
                 _isStarted = true;
             }
@@ -193,7 +198,12 @@ public class Client : MonoBehaviour
     {
         if (_players.ContainsKey(playerId))
         {
-            Destroy(_players[playerId].Instance.gameObject);
+            var instance = _players[playerId].Instance;
+
+            if (instance.Type == PlayerObjectType.ThisPlayer)
+                instance.OnFixedUpdate -= PlayerFixedUpdate;
+
+            Destroy(instance.gameObject);
             _players.Remove(playerId);
         }
     }
@@ -203,5 +213,10 @@ public class Client : MonoBehaviour
         foreach (var player in _players)
             Destroy(player.Value.Instance.gameObject);
         _players.Clear();
+    }
+
+    private void OnApplicationQuit()
+    {
+        NetworkTransport.Disconnect(_hostID, _connectionId, out _error);
     }
 }

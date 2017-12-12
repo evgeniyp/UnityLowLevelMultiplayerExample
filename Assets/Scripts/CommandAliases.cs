@@ -10,6 +10,7 @@
     // sent by client
     public const string AnswerName = "ANSN";            // client answers to AskName and sends his name: ANSN|<NAME>
     public const string MyPosition = "MYPOS";           // client sends his position MYPOS|<TICK>|<X>|<Y>|<Z>
+    public const string MyInput = "MYINP";              // client sends his input MYINP|<TICK>|<X>|<Y>|<Z>
 
     // sent by both
 }
