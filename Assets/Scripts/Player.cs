@@ -5,20 +5,23 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
+    public string Name;
     public PlayerObjectType Type = PlayerObjectType.ServerObject;
     public Vector3 UserInput;
     public event Action<Vector3> OnFixedUpdate;
     public Vector3 Position, OldPosition;
-    private float lastFixedUpdate;
+    private float lastFixedUpdateTime;
+    public float lastUpdateTimeFromServer;
 
     private void Start()
     {
-        lastFixedUpdate = Time.time;
+        lastFixedUpdateTime = Time.time;
+        lastUpdateTimeFromServer = Time.time;
     }
 
     private void FixedUpdate()
     {
-        lastFixedUpdate = Time.time;
+        lastFixedUpdateTime = Time.time;
 
         if (Type == PlayerObjectType.ThisPlayer)
         {
@@ -37,7 +40,6 @@ public class Player : MonoBehaviour
         }
         else
         {
-
         }
     }
 
@@ -45,19 +47,19 @@ public class Player : MonoBehaviour
     {
         if (Type == PlayerObjectType.ThisPlayer) // local interpolation
         {
-            var timeFactor = (Time.time - lastFixedUpdate) / Time.fixedDeltaTime;
+            var timeFactor = (Time.time - lastFixedUpdateTime) / Time.fixedDeltaTime;
             transform.position = Vector3.LerpUnclamped(OldPosition, Position, 1 + timeFactor);
         }
         else if (Type == PlayerObjectType.ServerObject)
         {
-
         }
         else
         {
-
+            var timeFactor = (Time.time - lastUpdateTimeFromServer) / Time.fixedDeltaTime;
+            transform.position = Vector3.Lerp(OldPosition, Position, timeFactor);
         }
 
-        GetComponentInChildren<TextMesh>().text = transform.position.ToString() + "\n" + UserInput.ToString();
+        GetComponentInChildren<TextMesh>().text = $"{transform.position}\n{UserInput}\n{Name}";
     }
 
 }

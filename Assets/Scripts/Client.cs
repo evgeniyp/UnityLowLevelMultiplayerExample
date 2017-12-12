@@ -152,12 +152,13 @@ public class Client : MonoBehaviour
                 {
                     var idNameArr = msg[i].Split('=');
                     var playerId = int.Parse(idNameArr[0]);
-                    if (playerId == _playerId)
-                        continue;
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
-                    if (_players.ContainsKey(playerId))
-                        _players[playerId].Instance.Position = position;
+                    var player = _players[playerId].Instance;
+
+                    player.OldPosition = player.Position;
+                    player.Position = position;
+                    player.lastUpdateTimeFromServer = Time.time;
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
@@ -182,7 +183,7 @@ public class Client : MonoBehaviour
             var player = new NetworkPlayer() { Instance = instance, PlayerId = playerId, PlayerName = playerName };
             _players.Add(playerId, player);
 
-            player.Instance.GetComponentInChildren<TextMesh>().text = playerName;
+            player.Instance.Name = playerName;
 
             if (playerId == _playerId)
             {
@@ -190,6 +191,10 @@ public class Client : MonoBehaviour
                 player.Instance.OnFixedUpdate += PlayerFixedUpdate;
                 _canvas.SetActive(false);
                 _isStarted = true;
+            }
+            else
+            {
+                player.Instance.Type = PlayerObjectType.OtherPlayer;
             }
         }
     }

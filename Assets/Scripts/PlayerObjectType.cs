@@ -1,6 +1,6 @@
 ﻿public enum PlayerObjectType
 {
     ThisPlayer,
-    OtherPlayes,
+    OtherPlayer,
     ServerObject
 }

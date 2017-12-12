@@ -112,7 +112,7 @@ public class Server : MonoBehaviour
             case CommandAliases.AnswerName:
                 var playerName = msg[1];
                 _clients[connectionId].PlayerName = playerName;
-                _clients[connectionId].Instance.GetComponentInChildren<TextMesh>().text = playerName;
+                _clients[connectionId].Instance.Name = playerName;
 
                 Broadcast($"{CommandAliases.PlayerConnected}|{connectionId}={playerName}", _reliableChannel, connectionId);
                 var players = _clients.Where(w => !string.IsNullOrEmpty(w.Value.PlayerName)).Select(s => $"{s.Value.ConnectionId}={s.Value.PlayerName}");
