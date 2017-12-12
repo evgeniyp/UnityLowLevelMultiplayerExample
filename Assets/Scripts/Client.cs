@@ -27,8 +27,6 @@ public class Client : MonoBehaviour
     private bool _isConnected;
     private bool _isStarted;
 
-    private int _tick;
-
     private readonly Dictionary<int, NetworkPlayer> _players = new Dictionary<int, NetworkPlayer>();
 
     private string _playerName;
@@ -111,7 +109,7 @@ public class Client : MonoBehaviour
 
         //var me = _players[_playerId].Instance;
         //var position = me.transform.position;
-        //Send($"{CommandAliases.MyPosition}|{_tick}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
+        //Send($"{CommandAliases.MyPosition}|{Tick}|{position.x}|{position.y}|{position.z}", _unreliableChannel);
     }
 
     private void Send(string message, int channelId)
@@ -147,7 +145,7 @@ public class Client : MonoBehaviour
                     break;
                 }
             case CommandAliases.PlayersPosition: // server sends position of players PLRSPOS|<TICK>|<ID>=<X>;<Y>;<Z>|<ID>=<X>;<Y>;<Z>|...
-                _tick = int.Parse(msg[1]);
+                var tick = int.Parse(msg[1]);
                 for (int i = 2; i < msg.Length; i++)
                 {
                     var idNameArr = msg[i].Split('=');
@@ -155,10 +153,7 @@ public class Client : MonoBehaviour
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
                     var player = _players[playerId].Instance;
-
-                    player.OldPosition = player.Position;
-                    player.Position = position;
-                    player.lastUpdateTimeFromServer = Time.time;
+                    player.UpdateOtherPlayerPosition(position, tick);
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
@@ -169,9 +164,9 @@ public class Client : MonoBehaviour
         }
     }
 
-    private void PlayerFixedUpdate(Vector3 v)
+    private void PlayerFixedUpdate(Vector3 v, int tick)
     {
-        Send($"{CommandAliases.MyInput}|{_tick}|{v.x}|{v.y}|{v.z}", _unreliableChannel);
+        Send($"{CommandAliases.MyInput}|{tick}|{v.x}|{v.y}|{v.z}", _unreliableChannel);
     }
 
     private void SpawnPlayer(int playerId, string playerName)

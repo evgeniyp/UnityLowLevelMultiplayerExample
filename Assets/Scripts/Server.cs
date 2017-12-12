@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
+
 
 internal class ConnectedClient
 {
     public int ConnectionId;
     public string PlayerName;
-    public int Tick;
     public Player Instance;
 }
 
@@ -75,11 +76,13 @@ public class Server : MonoBehaviour
 
     private void FixedUpdate()
     {
-        _tick++;
-
         var positionsArr = _clients.Values.Select(s => $"{s.ConnectionId}={s.Instance.Position.x};{s.Instance.Position.y};{s.Instance.Position.z}");
         var positionsStr = string.Join("|", positionsArr);
         Broadcast($"{CommandAliases.PlayersPosition}|{_tick}|{positionsStr}", _unreliableChannel);
+
+        // IMPORTANT: World at tick has been calculated and sent. Now starts the next tick.
+        _tick++;
+        GameObject.Find("Tick").GetComponent<Text>().text = _tick.ToString();
     }
 
     private void Broadcast(string message, int channelId, int? exceptConnectionId = null)
@@ -104,8 +107,7 @@ public class Server : MonoBehaviour
 
     private void OnData(int connectionId, string data)
     {
-        Debug.Log("Player " + connectionId + " has sent: " + data);
-
+        //Debug.Log("Player " + connectionId + " has sent: " + data);
         var msg = data.Split('|');
         switch (msg[0])
         {
@@ -137,13 +139,7 @@ public class Server : MonoBehaviour
                 var tick = int.Parse(msg[1]);
                 var client = _clients[connectionId];
 
-                if (tick < client.Tick && client.Tick != 0)
-                {
-                    Debug.LogWarning($"Incoming tick {tick} is from the past, and not initial tick. Expecting {client.Tick + 1}. Skipping.");
-                    break;
-                }
-
-                client.Tick = tick;
+                client.Instance.Tick = tick;
                 var input = new Vector3(float.Parse(msg[2]), float.Parse(msg[3]), float.Parse(msg[4]));
                 client.Instance.UserInput = input;
                 break;
