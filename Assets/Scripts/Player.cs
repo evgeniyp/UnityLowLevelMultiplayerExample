@@ -25,19 +25,10 @@ public class Player : MonoBehaviour
 
     private void FixedUpdate()
     {
-        Tick++;
         switch (Type)
         {
-            case PlayerObjectType.ThisPlayer:
-                UserInput = new Vector3(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"), 0);
-                _inputHistory[Tick] = UserInput;
-                OnFixedUpdate?.Invoke(UserInput, Tick);
-
-                _oldPosition = _position;
-                _position += UserInput * Consts.ClientSpeed * Time.fixedDeltaTime;
-                transform.position = _position;
-                break;
             case PlayerObjectType.ServerObject:
+                Tick++;
                 _oldPosition = _position;
                 _position += UserInput * Consts.ClientSpeed * Time.fixedDeltaTime;
                 transform.position = _position;
@@ -45,14 +36,37 @@ public class Player : MonoBehaviour
         }
     }
 
+    private void ManualFixedUpdate()
+    {
+        switch (Type)
+        {
+            case PlayerObjectType.ThisPlayer:
+                Tick++;
+                UserInput = new Vector3(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"), 0);
+                _inputHistory[Tick] = UserInput;
+                OnFixedUpdate?.Invoke(UserInput, Tick);
+
+                _oldPosition = _position;
+                _position += UserInput * Consts.ClientSpeed * Time.fixedDeltaTime;
+                transform.position = _position;
+                break;
+            case PlayerObjectType.OtherPlayer:
+                Tick++;
+                break;
+        }
+    }
+
     /// <summary>
     /// Update real position of other player as it comes from server
     /// </summary>
-    public void UpdateOtherPlayerPosition(Vector3 position, int tick)
+    public void UpdatePlayerPositionFromServer(Vector3 position, int tick)
     {
         if (Tick == 0)
-            Tick = tick + 1; // IMPORTANT: As we have received tick, now is the next one.
-        
+            Tick = tick + 1; // After sending position server has changed tick + 1, so we're trying to be in sync
+
+        if (Tick > tick + 1)
+            Debug.Log($"client ahead by {Tick - tick}");
+
         // TODO: think about tick syncing or calling FixedUpdate() manually
 
         _lastUpdateTimeFromServer = Time.time;
@@ -65,8 +79,8 @@ public class Player : MonoBehaviour
         else if (Type == PlayerObjectType.ThisPlayer)
         {
             // Restore position, remove old commands from the queue, apply remaining commands
-            _inputHistory = _inputHistory.Where(w => w.Key >= tick).ToDictionary(d => d.Key, d => d.Value);
             _position = position;
+            _inputHistory = _inputHistory.Where(w => w.Key > tick).ToDictionary(d => d.Key, d => d.Value);
             foreach (var input in _inputHistory.OrderBy(o => o.Key).Select(s => s.Value))
             {
                 _oldPosition = _position;
@@ -74,6 +88,8 @@ public class Player : MonoBehaviour
             }
             transform.position = _position;
         }
+
+        ManualFixedUpdate();
     }
 
     private void Update()
@@ -82,19 +98,19 @@ public class Player : MonoBehaviour
         {
             case PlayerObjectType.ThisPlayer:
                 {
-                    //var timeFactor = (Time.time - _lastUpdateTimeFromServer) / Time.fixedDeltaTime;
-                    //transform.position = Vector3.LerpUnclamped(_oldPosition, _position, 1 + timeFactor); // extrapolation
+                    var timeFactor = (Time.time - _lastUpdateTimeFromServer) / Time.fixedDeltaTime;
+                    transform.position = Vector3.LerpUnclamped(_oldPosition, _position, 1 + timeFactor); // extrapolation
                     break;
                 }
             case PlayerObjectType.OtherPlayer: // Interpolation between 2 last states. Brings fixedDeltaTime lag.
                 {
-                    //var timeFactor = (Time.time - _lastUpdateTimeFromServer) / Time.fixedDeltaTime;
-                    //transform.position = Vector3.Lerp(_oldPosition, _position, timeFactor);
+                    var timeFactor = (Time.time - _lastUpdateTimeFromServer) / Time.fixedDeltaTime;
+                    transform.position = Vector3.LerpUnclamped(_oldPosition, _position, 1 + timeFactor);
                     break;
                 }
         }
 
-        GetComponentInChildren<TextMesh>().text = $"{transform.position}\n{UserInput}\n{Name}\n{Tick}";
+        GetComponentInChildren<TextMesh>().text = $"name:{Name}\ntick:{Tick}\ninput:{UserInput}\npos:{transform.position}";
     }
 
 }

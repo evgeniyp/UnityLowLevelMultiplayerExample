@@ -152,8 +152,11 @@ public class Client : MonoBehaviour
                     var playerId = int.Parse(idNameArr[0]);
                     var positionArr = idNameArr[1].Split(';');
                     var position = new Vector3(float.Parse(positionArr[0]), float.Parse(positionArr[1]), float.Parse(positionArr[2]));
-                    var player = _players[playerId].Instance;
-                    player.UpdateOtherPlayerPosition(position, tick);
+                    if (_players.ContainsKey(playerId))
+                    {
+                        var player = _players[playerId].Instance;
+                        player.UpdatePlayerPositionFromServer(position, tick);
+                    }
                 }
                 break;
             case CommandAliases.PlayerDisconnected: // PLRDIS|<ID>
