@@ -181,7 +181,7 @@ TextMesh:
   m_Font: {fileID: 0}
   m_Color:
     serializedVersion: 2
-    rgba: 4278190080
+    rgba: 4294967295
 --- !u!114 &114898387482500972
 MonoBehaviour:
   m_ObjectHideFlags: 1
