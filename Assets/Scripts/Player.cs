@@ -28,7 +28,6 @@ public class Player : MonoBehaviour
         switch (Type)
         {
             case PlayerObjectType.ServerObject:
-                Tick++;
                 _oldPosition = _position;
                 _position += UserInput * Consts.ClientSpeed * Time.fixedDeltaTime;
                 transform.position = _position;
@@ -50,9 +49,6 @@ public class Player : MonoBehaviour
                 _position += UserInput * Consts.ClientSpeed * Time.fixedDeltaTime;
                 transform.position = _position;
                 break;
-            case PlayerObjectType.OtherPlayer:
-                Tick++;
-                break;
         }
     }
 
@@ -72,6 +68,7 @@ public class Player : MonoBehaviour
         _lastUpdateTimeFromServer = Time.time;
         if (Type == PlayerObjectType.OtherPlayer)
         {
+            Tick = tick;
             _oldPosition = _position;
             _position = position;
             transform.position = _position;
